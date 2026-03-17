@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KshetraAI - Land Intelligence</title>
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --bg-dark: #0a0e17;
+            --bg-panel: rgba(15, 23, 42, 0.85);
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --accent: #00FFAA;
+            --border-color: rgba(255, 255, 255, 0.1);
+            
+            --zone-agri: #10b981;
+            --zone-res: #6366f1;
+            --zone-comm: #f59e0b;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
+        body { display: flex; height: 100vh; background-color: var(--bg-dark); color: var(--text-main); overflow: hidden; }
+
+        .sidebar { width: 260px; background-color: #0b0f19; border-right: 1px solid var(--border-color); display: flex; flex-direction: column; padding: 20px 0; z-index: 1000; }
+        .logo { padding: 0 20px 30px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid var(--border-color); }
+        .logo-icon { width: 32px; height: 32px; background: var(--accent); border-radius: 8px; display: flex; justify-content: center; align-items: center;}
+        .logo-text h1 { font-size: 18px; font-weight: 700; color: white; letter-spacing: 0.5px;}
+        .logo-text p { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px;}
+        .nav-menu { flex: 1; padding: 20px 10px; list-style: none; }
+        .nav-item { padding: 12px 15px; margin-bottom: 5px; border-radius: 8px; color: var(--text-muted); font-size: 14px; font-weight: 500; cursor: pointer; transition: 0.2s; }
+        .nav-item:hover { background: rgba(255,255,255,0.05); color: white; }
+        .nav-item.active { background: rgba(0, 255, 170, 0.1); color: var(--accent); }
+
+        #map-wrapper { position: relative; flex: 1; height: 100%; }
+        #map { width: 100%; height: 100%; background: #111; z-index: 1; }
+
+        .glass-panel { position: absolute; background: var(--bg-panel); backdrop-filter: blur(12px); border: 1px solid var(--border-color); border-radius: 12px; padding: 16px; z-index: 1000; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        
+        .active-village { top: 20px; left: 20px; width: 320px; }
+        .active-village .tag { font-size: 10px; color: var(--accent); text-transform: uppercase; margin-bottom: 4px; display: block;}
+        .active-village h2 { font-size: 22px; font-weight: 700; margin-bottom: 2px;}
+        .active-village p { font-size: 12px; color: var(--text-muted); margin-bottom: 12px; line-height: 1.4;}
+        .active-village .status { font-size: 11px; display: flex; align-items: center; gap: 6px; color: #cbd5e1;}
+        .status-dot { width: 6px; height: 6px; background: var(--accent); border-radius: 50%; box-shadow: 0 0 8px var(--accent); }
+
+        .legend { bottom: 20px; left: 20px; width: 260px; }
+        .legend h3 { font-size: 10px; color: var(--text-muted); text-transform: uppercase; margin-bottom: 12px;}
+        .legend-item { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; font-size: 12px; color: #cbd5e1;}
+        .color-box { width: 12px; height: 12px; border-radius: 3px; }
+
+        .toggles { top: 20px; right: 20px; }
+        .toggle-row { display: flex; align-items: center; justify-content: space-between; gap: 20px; margin-bottom: 12px; font-size: 13px;}
+        .switch { position: relative; width: 36px; height: 20px; background: #334155; border-radius: 20px; cursor: pointer; transition: 0.3s;}
+        .switch.on { background: white; }
+        .switch::after { content: ''; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; background: white; border-radius: 50%; transition: 0.3s; }
+        .switch.on::after { left: 18px; background: black; }
+
+        #custom-tooltip { position: absolute; background: rgba(15, 23, 42, 0.95); border: 1px solid var(--border-color); border-radius: 8px; padding: 12px; color: white; font-size: 12px; pointer-events: none; opacity: 0; transition: opacity 0.1s; z-index: 2000; box-shadow: 0 4px 20px rgba(0,0,0,0.6); min-width: 180px; }
+        .tt-header { font-size: 10px; color: var(--accent); text-transform: uppercase; margin-bottom: 4px; }
+        .tt-khasra { font-size: 18px; font-weight: 700; margin-bottom: 12px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 8px;}
+        .tt-row { display: flex; justify-content: space-between; margin-bottom: 6px; }
+    .tt-label { color: var(--text-muted); }
+</style>
+</head>
+<body>
+
+    <aside class="sidebar">
+        
+        <div class="logo">
+            <div class="logo-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg></div>
+            <div class="logo-text"><h1>KshetraAI</h1><p>Land Intelligence</p></div>
+        </div>
+        <ul class="nav-menu">
+            <li class="nav-item active">🗺️ Map Explorer</li>
+            <li class="nav-item" onclick="window.location.href='dashboard.html'">📊 Dashboard</li>
+            <li class="nav-item">🏪 Marketplace</li>
+        </ul>
+    </aside>
+
+    <main id="map-wrapper">
+        <div id="map"></div>
+        
+        <div class="glass-panel active-village">
+            <span class="tag">Active Location</span>
+            <h2 id="dynamic-village">Initializing...</h2>
+            <p id="dynamic-details">Waiting for location data...</p>
+            <div class="status"><div class="status-dot"></div>Live Geocoding Active</div>
+        </div>
+
+        <div class="glass-panel toggles">
+            <div class="toggle-row"><span>Khasra Parcels</span><div class="switch on"></div></div>
+            <div class="toggle-row"><span>Infrastructure</span><div class="switch"></div></div>
+        </div>
+
+        <div class="glass-panel legend">
+            <h3>Zoning / भूमि वर्गीकरण</h3>
+            <div class="legend-item"><div class="color-box" style="background: var(--zone-agri)"></div> Agricultural / कृषि भूमि</div>
+            <div class="legend-item"><div class="color-box" style="background: var(--zone-res)"></div> Residential / आवासीय</div>
+            <div class="legend-item"><div class="color-box" style="background: var(--zone-comm)"></div> Commercial / वाणिज्यिक</div>
+        </div>
+        
+
+        <div class="glass-panel" style="top: 20px; left: 50%; transform: translateX(-50%); width: 400px; display: flex; gap: 10px; padding: 10px;">
+            <input type="text" id="khasra-input" placeholder="Enter Khasra No (e.g. 15)" style="flex: 1; background: transparent; border: none; color: white; outline: none; padding: 5px;">
+            <button onclick="searchKhasra()" style="background: var(--accent); color: black; border: none; padding: 8px 15px; border-radius: 6px; font-weight: 700; cursor: pointer;">SEARCH</button>
+        </div>
+
+        <div id="custom-tooltip">
+            <div class="tt-header">खसरा / Khasra</div>
+            <div class="tt-khasra" id="tt-k-no">#000</div>
+            <div class="tt-row"><span class="tt-label">Source</span><span class="tt-value" style="color:var(--accent)">JDA Registry</span></div>
+            <div style="margin-top: 10px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 10px;">
+                <button onclick="saveToPortfolio()" style="width: 100%; background: var(--accent); color: black; border: none; padding: 6px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 11px;">
+                    + SAVE TO PORTFOLIO
+                </button>
+            </div>
+        </div>
+    </main>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <script>
+        async function saveToPortfolio() {
+    const khasraNo = document.getElementById('tt-k-no').innerText.replace('Khasra: ', '').replace('#', '');
+    const btn = event.target;
+    btn.innerText = "SAVING...";
+    
+    try {
+        await fetch('http://localhost:3000/api/save-parcel', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ khasra: khasraNo, area: "Calculated", zone: "JDA" })
+        });
+        btn.innerText = "✓ SAVED";
+        btn.style.background = "#3b82f6"; // Turn blue on success
+        btn.style.color = "white";
+    } catch (e) {
+        btn.innerText = "ERROR";
+    }
+}
+        // 1. Initialize Map
+        const map = L.map('map', { zoomControl: false }).setView([26.815, 75.785], 14);
+        L.control.zoom({ position: 'topright' }).addTo(map);
+
+        L.tileLayer('https://cartodb-basemaps-{s}.global.ssl.fastly.net/dark_all/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap & CARTO',
+            subdomains: 'abcd',
+            maxZoom: 20
+        }).addTo(map);
+
+        // 2. Setup Tooltip Variables (These were missing!)
+        const tooltip = document.getElementById('custom-tooltip');
+        const mapContainer = document.getElementById('map-wrapper');
+        let currentLayer = null; // To keep track of the drawn polygons
+
+        mapContainer.addEventListener('mousemove', (e) => {
+            tooltip.style.left = (e.clientX + 15) + 'px';
+            tooltip.style.top = (e.clientY + 15) + 'px';
+        });
+
+        // 3. Search & Fetch Function
+        async function searchKhasra(khasraNumber) {
+            // If called from the button, use the input value. Otherwise, use the passed value.
+            const val = khasraNumber || document.getElementById('khasra-input').value;
+            if (!val) return;
+
+            document.getElementById('dynamic-village').innerText = "Searching Database...";
+
+            try {
+                // Now cleanly points to /api/search!
+                const res = await fetch(`http://localhost:3000/api/search?khasra=${val}`);
+                const data = await res.json();
+
+                if (data.features && data.features.length > 0) {
+                    
+                    // Remove old polygons if they exist
+                    if (currentLayer) map.removeLayer(currentLayer);
+
+                    // Draw new polygons
+                    currentLayer = L.geoJSON(data, {
+                        style: { color: '#00FFAA', weight: 2, fillOpacity: 0.2 },
+                        onEachFeature: function(feature, layer) {
+                            layer.on('mouseover', function(e) {
+                                this.setStyle({ fillOpacity: 0.5, weight: 3 });
+                                document.getElementById('tt-k-no').innerText = 'Plot ID: ' + (feature.properties.OBJECTID || 'N/A');
+                                tooltip.style.opacity = '1';
+                            });
+                            layer.on('mouseout', function(e) {
+                                currentLayer.resetStyle(this);
+                                tooltip.style.opacity = '0';
+                            });
+                        }
+                    }).addTo(map);
+
+                    // Smooth fly to the land
+                    map.flyToBounds(currentLayer.getBounds(), { padding: [50, 50], duration: 1.5 });
+                    document.getElementById('dynamic-village').innerText = `Khasra ${val} Found`;
+                } else {
+                    document.getElementById('dynamic-village').innerText = "Record Not Found";
+                    alert("No parcels found matching that Khasra number.");
+                }
+            } catch (e) {
+                console.error(e);
+                document.getElementById('dynamic-village').innerText = "Connection Error";
+            }
+        }
+
+        // 4. Reverse Geocoding (Click to identify area)
+        // 4. Reverse Geocoding & SPATIAL IDENTIFY (Click to find area & Khasra)
+        // 4. RADAR CLICK ENGINE: Find and Fly to Nearest Khasra
+        // 4. TOP 5 HUNTER ENGINE: Find the 5 absolute closest Khasras
+        map.on('click', async function(e) {
+            const clickedLat = e.latlng.lat;
+            const clickedLng = e.latlng.lng;
+            const clickedPoint = L.latLng(clickedLat, clickedLng);
+            
+            document.getElementById('dynamic-village').innerText = "Running Deep Scan...";
+            document.getElementById('dynamic-details').innerText = `Target: ${clickedLat.toFixed(4)}, ${clickedLng.toFixed(4)}`;
+
+            try {
+                // Fetch the massive 100km dragnet from the backend
+                const jdaResponse = await fetch(`http://localhost:3000/api/identify-khasra?lat=${clickedLat}&lng=${clickedLng}`);
+                const jdaData = await jdaResponse.json();
+
+                if (jdaData.features && jdaData.features.length > 0) {
+                    
+                    // --- THE SORTING ALGORITHM ---
+                    // 1. Calculate the exact distance for EVERY parcel the backend found
+                    const sortedFeatures = jdaData.features.map(feature => {
+                        const tempLayer = L.geoJSON(feature);
+                        const centerPoint = tempLayer.getBounds().getCenter();
+                        const distance = clickedPoint.distanceTo(centerPoint);
+                        return { feature, distance };
+                    });
+
+                    // 2. Sort them from closest to furthest
+                    sortedFeatures.sort((a, b) => a.distance - b.distance);
+
+                    // 3. Slice off exactly the Top 5 nearest parcels
+                    const top5 = sortedFeatures.slice(0, 5);
+
+                    // Clean up the map
+                    if (currentLayer) map.removeLayer(currentLayer);
+
+                    // Package the Top 5 back into a GeoJSON format Leaflet can read
+                    const top5GeoJSON = {
+                        type: "FeatureCollection",
+                        features: top5.map(item => item.feature)
+                    };
+
+                    // Draw all 5 closest Khasras on the map!
+                    currentLayer = L.geoJSON(top5GeoJSON, {
+                        style: { color: '#00FFAA', weight: 3, fillOpacity: 0.3 },
+                        onEachFeature: function(feature, layer) {
+                            const khasraNo = feature.properties.KH_NO || feature.properties.OBJECTID || "Valid Plot";
+                            layer.on('mouseover', function(e) {
+                                this.setStyle({ fillOpacity: 0.7, color: '#FF0055' }); // Highlight red on hover
+                                document.getElementById('tt-k-no').innerText = 'Khasra: ' + khasraNo;
+                                tooltip.style.opacity = '1';
+                            });
+                            layer.on('mouseout', function(e) {
+                                currentLayer.resetStyle(this);
+                                tooltip.style.opacity = '0';
+                            });
+                        }
+                    }).addTo(map);
+
+                    // --- UPDATE THE UI ---
+                    // Grab the absolute closest one (Index 0) for the main display
+                    const closest = top5[0];
+                    const primaryKhasra = closest.feature.properties.KH_NO || closest.feature.properties.OBJECTID || "Unknown";
+                    const distText = closest.distance < 100 ? "Direct Hit" : `${(closest.distance/1000).toFixed(2)} km away`;
+
+                    document.getElementById('dynamic-village').innerText = `Top 5 Found`;
+                    document.getElementById('dynamic-details').innerHTML = `Closest is Khasra #${primaryKhasra}<br><span style="color:var(--accent)">${distText}</span>`;
+                    document.getElementById('khasra-input').value = primaryKhasra; // Put closest in search bar
+
+                    // Fly the camera out to show all 5 parcels at once
+                    map.flyToBounds(currentLayer.getBounds(), { padding: [80, 80], duration: 1.5 });
+
+                } else {
+                    document.getElementById('dynamic-village').innerText = "Total Void";
+                    document.getElementById('dynamic-details').innerHTML = `<span style="color:#f87171">No data exists within 100km.</span>`;
+                }
+
+            } catch (error) {
+                console.error("Deep Scan failed", error);
+                document.getElementById('dynamic-village').innerText = "Network Error";
+            }
+        });
+    </script>
+</body>
+</html>
