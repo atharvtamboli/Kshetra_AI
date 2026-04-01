@@ -33,33 +33,15 @@ You must have [Node.js](https://nodejs.org/) installed on your machine.
 
 ### 1. Initialize the Backend
 Open your terminal, navigate to your project folder, and install the required dependencies:
-```bash
+
 npm init -y
 npm install express cors axios
+
 2. Start the KshetraAI Engine (Server)
 Start the Node.js proxy server. This handles the complex ArcGIS token authentication and spatial math.
 
-Bash
 node server.js
 The server will start on http://localhost:3000.
-
-3. Launch the Frontend
-Because the frontend uses modern ES6 modules and fetch requests, it must be served via a local web server (do not just double-click the HTML file).
-
-If using VS Code, use the Live Server extension.
-
-Serve index.html (Map Explorer) or dashboard.html (Analytics).
-
-API Architecture
-The Node.js backend acts as a stealth proxy, attaching necessary Referer headers and dynamic tokens to bypass government CORS restrictions.
-
-GET /api/search?khasra={id}: Queries the ArcGIS server for a specific parcel.
-
-GET /api/identify?lat={lat}&lng={lng}: Pings OpenStreetMap for local area names.
-
-GET /api/identify-khasra?lat={lat}&lng={lng}: Casts a 100km spatial net using esriSpatialRelIntersects to find the nearest boundaries to a GPS coordinate.
-
-POST /api/save-parcel: Saves a discovered Khasra to the local in-memory portfolio.
 
 GET /api/dashboard-data: Serves portfolio analytics and aggregated KPIs to the dashboard.
 
