@@ -1,17 +1,15 @@
 {
-  "name": "kshetra",
-  "version": "1.0.0",
-  "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+  "name": "kshetra-ai",
+  "version": "0.2.0",
+  "private": true,
+  "description": "Local bilingual land-record research pilot for Sisarma, Rajasthan",
+  "main": "server.js",
+  "engines": {
+    "node": ">=24"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "description": "",
-  "dependencies": {
-    "axios": "^1.13.6",
-    "cors": "^2.8.6",
-    "express": "^5.2.1"
+  "scripts": {
+    "start": "node --env-file-if-exists=.env server.js",
+    "test": "node --test tests/*.test.js",
+    "backup": "node --env-file-if-exists=.env scripts/backup.js"
   }
 }

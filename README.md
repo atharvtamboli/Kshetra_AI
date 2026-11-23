@@ -1,49 +1,39 @@
-# Kshetra_AI
+# KshetraAI · Sisarma pilot
 
-Markdown
-# KshetraAI - Institutional Land Intelligence
+A local English/Hindi land-record lookup for **Sisarma, Girwa, Udaipur**. Search one historical holding by khasra, current or previous khata number, or a recorded institutional name. Open the evidence for each result, save parcels to a local account, or export a PDF. UI routes work without external JavaScript, tiles or fonts.
 
-KshetraAI is a high-performance, dark-mode geospatial intelligence platform designed for institutional real estate investors. It bypasses traditional static maps by piping **live cadastral (Khasra) boundaries directly from government production servers (Rajasthan JDA)** into a custom Leaflet-powered interface.
+## Run
 
-##  Core Features
+Use Node.js 24 or newer. This pilot uses Node’s built-in HTTP and SQLite modules so startup requires no package downloads. Run these commands in the project folder.
 
-* **Live Government API Integration:** Streams live coordinate data from the Jaipur Development Authority's ArcGIS Settlement layers.
-* **100km Deep-Scan Radar:** Click anywhere on the map to trigger a spatial intersection query that mathematically calculates, sorts, and retrieves the Top 5 closest land parcels within a 100km radius.
-* **Precision Khasra Search:** Instantly query the government database by exact `OBJECTID` or `KH_NO` and automatically fly the camera to the plot.
-* **Live Reverse Geocoding:** Integrates with OpenStreetMap's Nominatim API to instantly identify the village, district, and pin code of any clicked location.
-* **Institutional Deal Flow Dashboard:** A dedicated analytics view (`dashboard.html`) to manage saved portfolios, calculate estimated valuations, generate investment scores, and match land against active corporate buyer mandates using Chart.js.
+```text
+npm start
+npm test
+```
 
-## Tech Stack
+On Windows, double-click `Start-KshetraAI.cmd` to start the server and open your browser. If you start it in a terminal, open http://127.0.0.1:3000. Optional configuration is documented in `.env.example`. The service binds to loopback. The database and local accounts live in `var/kshetra.sqlite`. Keep this directory private. PDF export uses an installed Chrome or Edge; set `CHROMIUM_PATH` if necessary. The printable report remains available if rendering fails.
 
-**Frontend:**
-* Vanilla HTML5 / CSS3 / JavaScript
-* [Leaflet.js](https://leafletjs.com/) (High-performance web mapping)
-* [Chart.js](https://www.chartjs.org/) (Dashboard data visualization)
-* CARTO Dark Matter Basemaps
+## What the pilot covers
 
-**Backend:**
-* [Node.js](https://nodejs.org/) & [Express.js](https://expressjs.com/)
-* Axios (For proxying requests and handling ArcGIS tokens)
-* CORS (Cross-Origin Resource Sharing)
+- **98 khasras, 910.3300 ha in aggregate.** The source is the Sisarma section of the NIC P-26(C) jamabandi for khata 905 (previously 850), base year 2018, Samvat 2074–2077. Copy issued 13 March 2020. The state is the recorded landholder; the Forest Department, Udaipur Range is listed as cultivator, with a full share at the holding level.
+- **Three cadastral sheet references.** Khasras 1811/5299, 2252 and 2253 also appear in a BhuNaksha attachment dated 12 April 2022. Each result links to its original PDF page on the government archive. The reported areas agree across the two documents. A separate jamabandi year is not provided for the 2022 sheet.
+- `records/khata-905.csv` holds the transcribed parcel facts. `records/sisarma.json` carries source URLs, extraction timestamps, dates, original-language roles, map scales and sheet references. Startup checks the source count, exact area total and cross-document area agreement. A restart does not restamp the data as fresh.
+- Search handles Hindi digits, slash subdivisions, bilingual aliases and small spelling differences for the two indexed institutional names. Search stays inside the selected pilot village. The index has no other holdings or private owners.
+- Archived records are informational. Current ownership, possession, subsequent mutations, conversion status and litigation are unchecked. Georeferenced vectors were unavailable; the app links original map sheets and reports map-computed area as unavailable. Maps and online archives require the source host to be reachable. No valuations or investment scores are generated.
 
-## Installation & Setup
+## Local account data
 
-### Prerequisites
-You must have [Node.js](https://nodejs.org/) installed on your machine.
+Local accounts use a username, scrypt password hash and expiring HTTP-only session cookies. Read-only searches can be made anonymously. Signed-in users can clear their last 20 search entries and remove saved parcels. Parcel access logs expire after 30 days while the service is running. Secret or live portal tokens are not required by this archive edition.
 
-### 1. Initialize the Backend
-Open your terminal, navigate to your project folder, and install the required dependencies:
+## Next milestone
 
-npm init -y
-npm install express cors axios
+Import a current, authorised village-level jamabandi and matching georeferenced cadastral vectors. Check village identity, parcel subdivisions, coordinate reference system and vintage before enabling point-in-polygon lookup, neighbour labels and area comparisons. Additional tehsils, live government login, change alerts and production release remain pending.
 
-2. Start the KshetraAI Engine (Server)
-Start the Node.js proxy server. This handles the complex ArcGIS token authentication and spatial math.
 
-node server.js
-The server will start on http://localhost:3000.
+## Project layout and operations
 
-GET /api/dashboard-data: Serves portfolio analytics and aggregated KPIs to the dashboard.
+The entry point is server.js. Application logic and HTML views are under src/, browser assets are under public/, archived evidence is under records/, and regression tests are under tests/. The original HTML launch links live under public/legacy/. Private runtime data stays under var/.
 
-Disclaimer on Government Tokens
-This project connects to secure government GIS servers (gisprod.rajasthan.gov.in). These servers utilize short-lived ArcGIS session tokens (usually expiring after 1 hour). If the map stops loading data, you must extract a fresh token from the live Rajdharaa portal via your browser's Network tab and update the authCache in server.js.
+Use npm run backup for a consistent SQLite snapshot while the service is running. Copies in var/backups/ contain account and session data and need the same protection as the live database. To rehearse a restore, stop the app and set DATABASE_PATH to a separate copy of the verified backup in .env, then start the app and check saved records. Preserve the existing database and its WAL files during recovery.
+
+GET /healthz checks database readability. Its historical coverage label describes the local archive. Live government service availability is untested. Public deployment requires a separate deployment and privacy review.
