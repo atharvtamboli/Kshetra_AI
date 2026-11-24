@@ -91,6 +91,16 @@ Start the app before using the backup command. The service exposes /healthz for 
 
 ## From village pilot to Rajasthan
 
+### Final demo walkthrough
+
+1. Search for khasra `1811/5299` or `2252` to see recorded interests, area and source dates.
+2. Open **Load village map** to explore the Sisarma locality; the official portal and cadastral sheet links support further verification.
+3. Open **Compare** and choose three khasras to review the recorded area, landholder, classification, source agreement and outstanding checks side by side.
+4. Open **Coverage** to inspect the actual 98-parcel archive, area totals, dated sources, classifications and evidence gaps.
+5. Use the field checklist and printable or PDF record to document the next verification steps.
+
+Historical comparisons classify fields as matching, differing or unavailable from independent copies. They do not establish current ownership. The application continues to use a village-scoped composite key in SQLite; importing further villages requires validated source records and village-aware views.
+
 The current archive contains 98 khasras totaling 910.3300 hectares under khata 905. Three records have independently linked cadastral sheets. Their source dates are visible throughout the app.
 
 Next milestones are a fresh authorised revenue extract, matching georeferenced boundaries, repeatable record-change checks and a reviewed deployment. Current title, litigation, possession and conversion remain unverified. See the [data inventory](DATA.md) for scope and outstanding evidence.

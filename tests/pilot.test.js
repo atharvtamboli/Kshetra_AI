@@ -5,11 +5,16 @@ const os=require('node:os'), path=require('node:path');
 const {once}=require('node:events');
 const {openStore,source}=require('../src/data');
 const {createApp}=require('../server');
+const {coverage,comparison}=require('../src/insights');
 
 test('archived control totals and both editions of the three mapped plots',()=>{
   const store=openStore(':memory:');
   try{
     assert.equal(store.list().length,98);
+    assert.deepEqual([coverage(store.list()).count,coverage(store.list()).linked,coverage(store.list()).agreement,coverage(store.list()).preciseBoundaries],[98,3,3,0]);
+    assert.equal(comparison(store.plot('2252')).status,'agrees-where-available');
+    assert.equal(comparison({...store.plot('2252'),area:'0.1000'}).status,'differs');
+    assert.equal(comparison(store.list().find(p=>!source.sheets[p.khasra])).status,'unavailable');
     assert.equal(store.list().reduce((n,p)=>n+Math.round(Number(p.area)*10000),0),9103300);
     for(const [k,s] of Object.entries(source.sheets))assert.equal(store.plot(k).area,s.area);
     assert.equal(store.search('khasra','१८११ / ५२९९')[0].khasra,'1811/5299');
@@ -59,6 +64,19 @@ test('account isolation, saved parcels, history, restart and request errors',asy
     const reportHtml=await report.text();
     assert.match(reportHtml,/Village-level location/);
     assert.doesNotMatch(reportHtml,/<iframe/);
+    const coveragePage=await (await get('/coverage')).text();
+    assert.match(coveragePage,/Evidence coverage/);
+    assert.match(coveragePage,/910\.3300 ha/);
+    assert.match(coveragePage,/3 \/ 98/);
+    const compared=await (await get('/compare?a=2252&b=2253&c=1811%2F5299')).text();
+    assert.match(compared,/Side-by-side evidence/);
+    for (const area of ['9.8600','0.8800','8.7500']) assert.ok(compared.includes(area));
+    assert.match(compared,/Comparable fields agree/);
+    assert.equal((await get('/compare?a=2252&b=2252')).status,400);
+    assert.equal((await get('/compare?a=99999')).status,400);
+    const printable=await (await get('/compare?a=2252&b=2253&print=1')).text();
+    assert.match(printable,/Side-by-side evidence/);
+    assert.doesNotMatch(printable,/class="panel pad comparison-form"/);
     assert.match(record,/भूमि धारक/);assert.match(record,/9\.8600/);assert.match(record,/#page=2/);
     await get('/?by=khasra&q=2252',alice);
     assert.match(await (await get('/history',alice)).text(),/class="history-row"/);

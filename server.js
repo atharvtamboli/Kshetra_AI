@@ -5,6 +5,7 @@ const crypto = require('node:crypto');
 const {promisify} = require('node:util');
 const {openStore,source,normalize} = require('./src/data');
 const {context,shell,lookup,detail,row,h} = require('./src/views');
+const {coverageView,compareView} = require('./src/workspace');
 const {renderPdf} = require('./src/reports');
 const hashPassword = promisify(crypto.scrypt);
 const css = fs.readFileSync(path.join(__dirname,'public/style.css'),'utf8');
@@ -65,6 +66,14 @@ function createApp(filename=process.env.DATABASE_PATH || path.join(__dirname,'va
         if (route==='/favicon.ico') return send(204,'');
         if (route==='/index.html') return redirect(to('/'));
         if (route==='/dashboard.html') return redirect(to('/saved'));
+        if (route==='/coverage') return send(200,coverageView(c,store));
+        if (route==='/compare') {
+          const selected=['a','b','c'].map(k=>normalize(sp.get(k)||''));
+          const populated=selected.filter(Boolean);
+          if (populated.some(k=>!store.plot(k))||new Set(populated).size!==populated.length)
+            return error(400,t('Choose distinct khasras from this archive','इस अभिलेख से अलग-अलग खसरे चुनें'));
+          return send(200,compareView(c,store,selected,sp.get('print')==='1'));
+        }
         if (route==='/') {
           const mode=sp.get('by')||'khasra', q=sp.get('q')?.trim()||'';
           if (!['all','sheets'].includes(sp.get('filter')||'all')||!modes.includes(mode)||q.length>80||(sp.has('page')&&!/^[1-9]\d{0,3}$/.test(sp.get('page'))))
