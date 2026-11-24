@@ -26,7 +26,9 @@ The first working pilot covers one historical holding in **Sisarma, Girwa, Udaip
 
 ## See it in action
 
-Follow the [demo walkthrough](docs/DEMO.md) to explore the parcel lookup and evidence comparison.
+![KshetraAI parcel explorer](docs/screenshots/lookup.jpg)
+
+![KshetraAI recorded interests](docs/screenshots/parcel.jpg)
 
 ## What is built
 
