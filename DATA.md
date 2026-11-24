@@ -20,3 +20,7 @@ The archived landholder is the Rajasthan Government and the recorded cultivator 
 This inventory represents a single historical holding. Current title, possession, subsequent mutations, litigation, and land-use conversion require additional evidence. Georeferenced parcel vectors are unavailable. The map sheet links allow document review. Areas are transcribed from the records. Source availability can vary.
 
 For current information, use [Apna Khata](https://apnakhata.rajasthan.gov.in/) and obtain a fresh authorised record. Mutation tracking requires a known token. See [mutation status](https://apnakhata.rajasthan.gov.in/TrackMutationAvantan.aspx).
+
+## Village location reference
+
+The [BBNL district/block/village table](https://bbnl.nic.in/admnis/admin/showimg.aspx?ID=982) lists Sisarma, Girwa, Udaipur at latitude 24.573150 and longitude 73.653100. This is a village reference, not survey geometry or a parcel centroid. KshetraAI uses it to center the optional OpenStreetMap view. The [official Rajasthan GIS](https://rajdharaa.rajasthan.gov.in/citizenudh/index) offers khasra search; availability of precise georeferenced boundaries for these parcels remains unverified.

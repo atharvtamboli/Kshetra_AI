@@ -1,4 +1,6 @@
 const {source} = require('./data');
+const {villageLocation, villageMapUrls} = require('./location');
+const {comparison} = require('./insights');
 const h = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
 const terms = { 'रास्ता':['Road / path','रास्ता'], 'मगरि':['Magri','मगरि'], 'पहाड़':['Hill','पहाड़'] };
@@ -13,14 +15,14 @@ function context(reqUrl, user) {
   }
   const toggle = new URL(reqUrl);
   toggle.searchParams.set('lang',hi ? 'en':'hi');
-  return {hi,t,link,user,toggle:h(toggle.pathname+toggle.search)};
+  return {hi,t,link,user,showMap:reqUrl.searchParams.get('map')==='1',toggle:h(toggle.pathname+toggle.search)};
 }
 function shell(c,title,body,section='search') {
   const {t,link,user}=c;
   const nav=(route,label,id)=>`<a ${section===id?'aria-current="page"':''} href="${link(route)}">${label}</a>`;
   return `<!doctype html><html lang="${c.hi?'hi':'en'}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${h(title)} · KshetraAI</title><link rel="stylesheet" href="/style.css"></head><body>
   <a class="skip" href="#content">${t('Skip to content','मुख्य सामग्री पर जाएँ')}</a><header><div class="bar"><a class="brand" href="${link('/')}"><b class="brand-icon" aria-hidden="true">▧</b>Kshetra<span>AI</span></a>
-  <nav>${nav('/',t('Lookup','खोज'),'search')}${nav('/saved',t('Saved','सहेजे गए'),'saved')}${nav('/history',t('History','इतिहास'),'history')}</nav>
+  <nav>${nav('/',t('Lookup','खोज'),'search')}${nav('/saved',t('Saved','सहेजे गए'),'saved')}${nav('/history',t('History','इतिहास'),'history')}${nav('/compare',t('Compare','तुलना'),'compare')}${nav('/coverage',t('Coverage','कवरेज'),'coverage')}</nav>
   <div class="actions"><a lang="${c.hi?'en':'hi'}" href="${c.toggle}">${t('हिन्दी','English')}</a>${user?`<form method="post" action="${link('/logout')}"><button class="quiet">${t('Sign out','लॉग आउट')}</button></form>`:`<a class="outline" href="${link('/account')}">${t('Sign in','लॉग इन')}</a>`}</div></div></header>
   <main id="content" tabindex="-1">${body}</main><footer><b>KshetraAI</b><span>${t('Udaipur land records','उदयपुर भू-अभिलेख')}</span><a href="${link('/terms')}">${t('Terms & privacy','शर्तें और गोपनीयता')}</a></footer></body></html>`;
 }
@@ -59,6 +61,23 @@ function evidence(c,s,locator,url=s.url){
   const {t}=c;
   return `<div class="source"><b>${official(url,t(...s.name))}</b><p>${h(locator)} · ${h(t(...s.issuer))}</p><small>${t('Copy issued','प्रति जारी')} ${s.issued} · ${t('Retrieved','प्राप्ति')} ${s.fetchedAt.replace('T',' ').slice(0,19)} UTC</small></div>`;
 }
+function locationPanel(c,p,print){
+  const {t,link}=c;
+  const urls=villageMapUrls();
+  const mapLink=link('/plot',{k:p.khasra,map:'1'})+'#location-map';
+  const instructions=t('Select Udaipur → Girwa → Sisarma, then enter the full khasra number in the official portal.','सरकारी पोर्टल में उदयपुर → गिर्वा → सीसारमा चुनें और पूरा खसरा नंबर दर्ज करें।');
+  return `<article id="location-map" class="panel pad location-panel">
+    <div class="eyebrow">${t('Village-level location','ग्राम स्तर का स्थान')}</div>
+    <h2>${t('Where is this parcel?','यह भूखंड कहाँ है?')}</h2>
+    <p>${t('The record identifies Sisarma village. The map pin marks a published village reference point. The position and boundary of this individual khasra are unverified.','अभिलेख में सीसारमा ग्राम दर्ज है। पिन ग्राम के प्रकाशित संदर्भ बिंदु को दिखाता है। इस खसरे का सटीक स्थान और सीमा अप्रमाणित हैं।')}</p>
+    ${pair(t('Village reference (latitude, longitude)','ग्राम संदर्भ (अक्षांश, देशांतर)'),villageLocation.latitude.toFixed(6)+', '+villageLocation.longitude.toFixed(6))}
+    ${print?'':c.showMap?`<iframe class="village-map" title="${t('Sisarma village reference map','सीसारमा ग्राम संदर्भ नक्शा')}" src="${h(urls.embed)}" loading="lazy" referrerpolicy="no-referrer"></iframe><p class="note">${t('Map: OpenStreetMap contributors. The pin is a village reference, not a parcel location.','नक्शा: OpenStreetMap योगदानकर्ता। पिन ग्राम संदर्भ है, खसरे का स्थान नहीं।')}</p>`:`<p><a class="button" href="${mapLink}">${t('Load village map','ग्राम नक्शा खोलें')}</a></p><p class="muted">${t('Loads the interactive map from OpenStreetMap when selected.','चुनने पर OpenStreetMap से नक्शा लोड होगा।')}</p>`}
+    <p>${official(villageLocation.source,t('Village coordinate source — BBNL','ग्राम निर्देशांक स्रोत — BBNL'))} · ${official(urls.map,t('Explore surrounding area','आसपास का क्षेत्र देखें'))}</p>
+    <h3>${t('Look up the precise parcel','सटीक खसरा खोजें')}</h3><p>${instructions} <b>${h(p.khasra)}</b></p>
+    <p>${official(villageLocation.officialMap,t('Open official Rajasthan GIS','राजस्थान का सरकारी GIS खोलें'))}</p>
+    <p class="note">${t('Confirm the cadastral sheet and obtain official demarcation before relying on a boundary.','सीमा पर भरोसा करने से पहले खसरा नक्शा और आधिकारिक सीमांकन प्राप्त करें।')}</p>
+  </article>`;
+}
 function fieldGuide(c,p,sheet){
   const {t}=c, holding=source.holding, sources=source.sources;
   const explanation=t('In this archived holding the Rajasthan Government is recorded as landholder. The Forest Department, Udaipur Range is recorded as cultivator. Its full share applies to khata 905. Present ownership needs a fresh record.',
@@ -69,13 +88,22 @@ function fieldGuide(c,p,sheet){
     [t('Where is the boundary?','जमीन की सीमा कहाँ है?'),t('Ask the tehsil office for official demarcation against the full khasra number.','तहसील में पूरे खसरा नंबर से सीमाज्ञान माँगें।')],
     [t('Any dispute or conversion?','कोई विवाद या भूमि रूपांतरण?'),t('Ask for parcel-linked case orders and any issued 90A order. These checks are outstanding.','खसरे से जुड़े न्यायालय के आदेश और जारी 90ए आदेश माँगें। ये जाँचें बाकी हैं।')]];
   const sheetUrl=sheet?sources.sheets.url+'#page='+sheet.page:null;
+  const reviewRows=[
+    [t('Recorded owner and cultivator','दर्ज स्वामी और काश्तकार'),t('Historical entry available','ऐतिहासिक प्रविष्टि उपलब्ध')],
+    [t('Second cadastral copy','दूसरी खसरा प्रति'),sheet?t('Linked historical sheet','ऐतिहासिक नक्शा जुड़ा है'):t('Unavailable','अनुपलब्ध')],
+    [t('Current official title','वर्तमान आधिकारिक स्वामित्व'),t('Fresh record required','नया अभिलेख आवश्यक')],
+    [t('Precise parcel position / boundary','सटीक खसरा स्थान / सीमा'),t('Official demarcation required','आधिकारिक सीमांकन आवश्यक')],
+    [t('Mutation, encumbrance and dispute','नामांतरण, भार और विवाद'),t('Independent checks required','स्वतंत्र जांच आवश्यक')],
+    [t('Land-use conversion and physical possession','भूमि उपयोग परिवर्तन और कब्जा'),t('Independent checks required','स्वतंत्र जांच आवश्यक')]
+  ];
+  const review=`<article class="panel pad"><h2>${t('Due diligence summary','भूमि सत्यापन सारांश')}</h2><dl>${reviewRows.map(([label,value])=>pair(label,value)).join('')}</dl></article>`;
   const reference=(s,label,url)=>official(url,label)+' · '+s.issued+'<br><small>'+t('Retrieved','प्राप्ति')+' '+h(s.fetchedAt)+'</small>';
   const guide=`<article id="guide" class="panel pad field-guide"><h2>${t('Field checklist','मौके पर जाँच की सूची')}</h2><p>${explanation}</p><p>${reference(sources.jamabandi,t('Jamabandi · khata 905','जमाबंदी · खाता 905'),sources.jamabandi.url)}</p>${sheet?`<p>${reference(sources.sheets,t('Map sheet','खसरा नक्शा')+' '+sheet.page,sheetUrl)} · ${h(sheet.area)} ha</p>`:''}<ul>${checks.map(([q,action])=>`<li><b>${q}</b> ${action}</li>`).join('')}</ul></article>`;
-  if(!sheet)return guide;
-  const rows=[[t('Khasra','खसरा'),p.khasra,sheet.khasra],[t('Khata','खाता'),holding.khata,sheet.khata],
-    [t('Area (ha)','क्षेत्रफल (हे.)'),p.area,sheet.area],[t('Cultivator','काश्तकार'),holding.cultivator[1],sheet.cultivator],
-    [t('Landholder','भूमि धारक'),holding.landholder[1],null]];
-  return guide+`<article id="comparison" class="panel pad"><h2>${t('Compare the copies','प्रतियों का मिलान')}</h2><div class="compare"><table><thead><tr><th>${t('Field','विवरण')}</th><th>${official(sources.jamabandi.url,t('Jamabandi','जमाबंदी'))}<br>${sources.jamabandi.issued}</th><th>${official(sheetUrl,t('Map sheet','नक्शा'))}<br>${sources.sheets.issued}</th><th>${t('Result','मिलान')}</th></tr></thead><tbody>${rows.map(([label,left,right])=>`<tr><th scope="row">${label}</th><td>${h(left)}</td><td>${h(right??'—')}</td><td>${right==null?t('Missing','उपलब्ध नहीं'):left===right?t('Agrees','समान'):t('Differs','अलग')}</td></tr>`).join('')}</tbody></table></div><p class="note">${t('Both area values are printed in the records. No boundary measurement was available.','दोनों क्षेत्रफल दस्तावेजों में दर्ज हैं। सीमा की माप उपलब्ध नहीं है।')}</p></article>`;
+  if(!sheet)return review+guide;
+  const labels={khasra:t('Khasra','खसरा'),khata:t('Khata','खाता'),area:t('Area (ha)','क्षेत्रफल (हे.)'),cultivator:t('Cultivator','काश्तकार'),landholder:t('Landholder','भूमि धारक')};
+  const compared=comparison(p);
+  const rows=compared.fields.map(f=>[labels[f.key],f.first,f.second]);
+  return review+guide+`<article id="comparison" class="panel pad"><h2>${t('Compare the copies','प्रतियों का मिलान')}</h2><div class="compare"><table><thead><tr><th>${t('Field','विवरण')}</th><th>${official(sources.jamabandi.url,t('Jamabandi','जमाबंदी'))}<br>${sources.jamabandi.issued}</th><th>${official(sheetUrl,t('Map sheet','नक्शा'))}<br>${sources.sheets.issued}</th><th>${t('Result','मिलान')}</th></tr></thead><tbody>${rows.map(([label,left,right])=>`<tr><th scope="row">${label}</th><td>${h(left)}</td><td>${h(right??'—')}</td><td>${right==null?t('Missing','उपलब्ध नहीं'):left===right?t('Agrees','समान'):t('Differs','अलग')}</td></tr>`).join('')}</tbody></table></div><p class="note">${t('Both area values are printed in the records. No boundary measurement was available.','दोनों क्षेत्रफल दस्तावेजों में दर्ज हैं। सीमा की माप उपलब्ध नहीं है।')}</p></article>`;
 }
 function detail(c,p,saved,print=false){
   const {t,link}=c, hold=source.holding, s=source.sources, sheet=source.sheets[p.khasra];
@@ -94,9 +122,12 @@ function detail(c,p,saved,print=false){
   <p class="muted">${t('Mutation orders, sales, inheritance, partition and loan history have not been checked.','नामांतरण आदेश, बिक्री, उत्तराधिकार, विभाजन और ऋण इतिहास की जाँच उपलब्ध नहीं है।')}</p></article></section>
   <aside><article class="panel aside flag"><div class="eyebrow">${t('Source-backed flag','स्रोत-आधारित संकेत')}</div><h2>${t('Government holding','राजकीय भूमि')}</h2><p>${t('The archived jamabandi names the state government as landholder.','पुरानी जमाबंदी में राज्य सरकार भूमि धारक के रूप में दर्ज है।')}</p><b>${t('High confidence in the archived entry','पुरानी प्रविष्टि पर उच्च विश्वास')}</b><p class="muted">${t('Source: 2018 jamabandi, copy issued 2020. Current status, litigation and 90A conversion are unchecked.','स्रोत: 2018 जमाबंदी, प्रति 2020। वर्तमान स्थिति, मुकदमे और 90ए रूपांतरण की जाँच नहीं हुई।')}</p></article>
   <article id="map-sheet" class="panel aside"><h2>${t('Cadastral map','खसरा नक्शा')}</h2>${sheet?`${evidence(c,s.sheets,t('Map sheet, page ','नक्शा, पृष्ठ ')+sheet.page+' · 1:'+sheet.scale,sheetUrl)}`:`<p>${t('No map sheet linked for this khasra.','इस खसरे का नक्शा उपलब्ध नहीं है।')}</p>`}<p class="note">${t('Georeferenced boundaries and computed area are unavailable. Official demarcation requires a survey.','भू-संदर्भित सीमाएँ और गणना किया क्षेत्रफल उपलब्ध नहीं हैं। आधिकारिक सीमांकन के लिए सर्वेक्षण आवश्यक है।')}</p></article></aside></div>
+  ${locationPanel(c,p,print)}
+  ${print?'':`<p><a class="button" href="${link('/compare',{a:p.khasra})}">${t('Compare this parcel','इस खसरे की तुलना करें')}</a> <a class="outline" href="${link('/coverage')}">${t('View evidence coverage','साक्ष्य कवरेज देखें')}</a></p>`}
   ${print?'':fieldGuide(c,p,sheet)}
   ${print?`<p>${t('Report generated','रिपोर्ट तैयार')} ${new Date().toISOString()} · ${t('Informational historical extract.','सूचना हेतु ऐतिहासिक प्रति।')}</p>`:''}`;
   return shell(c,t('Khasra','खसरा')+' '+p.khasra,body);
 }
 module.exports = {h,context,shell,lookup,detail,row,place};
+
 

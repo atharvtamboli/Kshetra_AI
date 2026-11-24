@@ -660,3 +660,13 @@ article[id] {
   }
 }
 .account-grid input.agreement { display:inline; width:auto; min-height:0; }
+.location-panel { margin: 20px 0; }
+.village-map { display:block; width:100%; height:clamp(320px,55vh,550px); border:1px solid #7c8b80; border-radius:12px; margin:16px 0; }
+.coverage-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:14px; margin:18px 0; }
+.coverage-card { min-width:0; }
+.coverage-card strong { display:block; font-size:clamp(24px,3vw,36px); margin:10px 0; }
+.comparison-form { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:14px; align-items:end; margin:18px 0; }
+.parcel-compare { min-width:570px; }
+@media print { .parcel-compare { min-width:0; } .comparison-form { display:none; } }
+@media (max-width:750px) { .bar nav { overflow-x:auto; } .bar nav a { flex-shrink:0; } }
+

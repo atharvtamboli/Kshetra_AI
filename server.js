@@ -5,6 +5,7 @@ const crypto = require('node:crypto');
 const {promisify} = require('node:util');
 const {openStore,source,normalize} = require('./src/data');
 const {context,shell,lookup,detail,row,h} = require('./src/views');
+const {coverageView,compareView} = require('./src/workspace');
 const {renderPdf} = require('./src/reports');
 const hashPassword = promisify(crypto.scrypt);
 const css = fs.readFileSync(path.join(__dirname,'public/style.css'),'utf8');
@@ -65,6 +66,14 @@ function createApp(filename=process.env.DATABASE_PATH || path.join(__dirname,'va
         if (route==='/favicon.ico') return send(204,'');
         if (route==='/index.html') return redirect(to('/'));
         if (route==='/dashboard.html') return redirect(to('/saved'));
+        if (route==='/coverage') return send(200,coverageView(c,store));
+        if (route==='/compare') {
+          const selected=['a','b','c'].map(k=>normalize(sp.get(k)||''));
+          const populated=selected.filter(Boolean);
+          if (populated.some(k=>!store.plot(k))||new Set(populated).size!==populated.length)
+            return error(400,t('Choose distinct khasras from this archive','इस अभिलेख से अलग-अलग खसरे चुनें'));
+          return send(200,compareView(c,store,selected,sp.get('print')==='1'));
+        }
         if (route==='/') {
           const mode=sp.get('by')||'khasra', q=sp.get('q')?.trim()||'';
           if (!['all','sheets'].includes(sp.get('filter')||'all')||!modes.includes(mode)||q.length>80||(sp.has('page')&&!/^[1-9]\d{0,3}$/.test(sp.get('page'))))
@@ -86,7 +95,8 @@ function createApp(filename=process.env.DATABASE_PATH || path.join(__dirname,'va
           store.audit(user,p.khasra);
           const saved=user && db.prepare('SELECT 1 FROM saves WHERE user_id=? AND village=? AND khasra=?').get(user.id,source.scope,p.khasra);
           const html=detail(c,p,saved,route!=='/plot');
-          if(route!=='/report.pdf') return send(200,html);
+          if(route!=='/report.pdf') return send(200,html,'text/html; charset=utf-8',
+            route==='/plot'&&c.showMap?{'Content-Security-Policy':"default-src 'none'; style-src 'self'; img-src 'self'; frame-src https://www.openstreetmap.org; form-action 'self'; frame-ancestors 'none'; base-uri 'none'"}:{});
           if (limited('pdf:'+ip,12,60000)) return error(429,t('Report limit reached. Retry in one minute.','एक मिनट बाद पुनः प्रयास करें।'));
           try {const pdf=await renderPdf(html,css);return send(200,pdf,'application/pdf',{'Content-Disposition':'attachment; filename="Kshetra-'+p.khasra.replaceAll('/','-')+'-'+(c.hi?'hi':'en')+'.pdf"'});}
           catch {return send(503,shell(c,t('PDF unavailable','पीडीएफ अनुपलब्ध'),`<article class="panel pad"><h2>${t('PDF renderer unavailable or busy','पीडीएफ सेवा अनुपलब्ध या व्यस्त है')}</h2><p>${t('Open the print view and choose Save as PDF in your browser.','प्रिंट दृश्य खोलें और ब्राउज़र में PDF सहेजें चुनें।')}</p><a href="${link('/report',{k:p.khasra})}">${t('Open print view','प्रिंट दृश्य खोलें')}</a></article>`));}
@@ -152,4 +162,5 @@ if(require.main===module){
   });
 }
 module.exports={createApp};
+
 
