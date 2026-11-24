@@ -660,3 +660,6 @@ article[id] {
   }
 }
 .account-grid input.agreement { display:inline; width:auto; min-height:0; }
+.location-panel { margin: 20px 0; }
+.village-map { display:block; width:100%; height:clamp(320px,55vh,550px); border:1px solid #7c8b80; border-radius:12px; margin:16px 0; }
+

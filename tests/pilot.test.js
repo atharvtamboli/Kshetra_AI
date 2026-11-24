@@ -43,6 +43,22 @@ test('account isolation, saved parcels, history, restart and request errors',asy
     const partial=await (await get('/?by=khasra&q=1811')).text();
     assert.match(partial,/No match in this archive/);
     const record=await (await get('/plot?k=2252&lang=hi')).text();
+    const approximate=await get('/plot?k=2252');
+    const fallback=await approximate.text();
+    assert.match(fallback,/Village-level location/);
+    assert.match(fallback,/24\.573150, 73\.653100/);
+    assert.match(fallback,/position and boundary of this individual khasra are unverified/);
+    assert.doesNotMatch(fallback,/<iframe/);
+    assert.doesNotMatch(approximate.headers.get('content-security-policy'),/frame-src/);
+    const mapped=await get('/plot?k=2252&map=1');
+    const mappedHtml=await mapped.text();
+    assert.match(mappedHtml,/<iframe class="village-map"/);
+    assert.match(mappedHtml,/www\.openstreetmap\.org\/export\/embed\.html/);
+    assert.match(mapped.headers.get('content-security-policy'),/frame-src https:\/\/www\.openstreetmap\.org/);
+    const report=await get('/report?k=2252&map=1');
+    const reportHtml=await report.text();
+    assert.match(reportHtml,/Village-level location/);
+    assert.doesNotMatch(reportHtml,/<iframe/);
     assert.match(record,/भूमि धारक/);assert.match(record,/9\.8600/);assert.match(record,/#page=2/);
     await get('/?by=khasra&q=2252',alice);
     assert.match(await (await get('/history',alice)).text(),/class="history-row"/);
@@ -60,3 +76,4 @@ test('account isolation, saved parcels, history, restart and request errors',asy
     assert.equal((await post('/login',{username:'alice',password:'a test password only'})).status,303);
   }finally{await stop();rmSync(dir,{recursive:true,force:true});}
 });
+
