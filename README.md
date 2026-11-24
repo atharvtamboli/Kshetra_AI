@@ -113,4 +113,4 @@ Next milestones are a fresh authorised revenue extract, matching georeferenced b
 
 </div>
 
-
+[Pilot release readiness and deployment gates](docs/RELEASE_READINESS.md)
