@@ -1,39 +1,101 @@
-# KshetraAI · Sisarma pilot
+<div align="center">
 
-A local English/Hindi land-record lookup for **Sisarma, Girwa, Udaipur**. Search one historical holding by khasra, current or previous khata number, or a recorded institutional name. Open the evidence for each result, save parcels to a local account, or export a PDF. UI routes work without external JavaScript, tiles or fonts.
+# KSHETRA AI · क्षेत्र
 
-## Run
+### A step toward transparent land records in India.
 
-Use Node.js 24 or newer. This pilot uses Node’s built-in HTTP and SQLite modules so startup requires no package downloads. Run these commands in the project folder.
+**Find the parcel. Read the record. Follow the evidence.**
 
-```text
+[![Pilot checks](https://github.com/atharvtamboli/Kshetra_AI/actions/workflows/pilot.yml/badge.svg)](https://github.com/atharvtamboli/Kshetra_AI/actions/workflows/pilot.yml)
+![Node.js](https://img.shields.io/badge/Node.js-24+-339933?logo=nodedotjs&logoColor=white)
+![Storage](https://img.shields.io/badge/SQLite-local-003B57?logo=sqlite)
+![Coverage](https://img.shields.io/badge/Sisarma-98%20khasras-24694F)
+![Paid services](https://img.shields.io/badge/Paid%20services-None-24694F)
+
+[Run the pilot](#quick-start) · [Demo walkthrough](docs/DEMO.md) · [Data provenance](DATA.md) · [Architecture](#architecture)
+
+</div>
+
+---
+
+## The idea
+
+Imagine a buyer or landholder trying to understand a khasra number from a revenue record. KshetraAI brings the recorded interests, area, historical evidence and outstanding checks into one bilingual workspace so people can ask informed questions before a land transaction.
+
+The first working pilot covers one historical holding in **Sisarma, Girwa, Udaipur, Rajasthan**.
+
+## See it in action
+
+Follow the [demo walkthrough](docs/DEMO.md) to explore the parcel lookup and evidence comparison.
+
+## What is built
+
+| Land-record research | Working capabilities |
+| --- | --- |
+| **Parcel explorer** | 98 archived khasras, Hindi and English search, khata and recorded institutional-name lookup |
+| **Ownership evidence** | Recorded landholder and cultivator, holding share, source date, area and previous khata |
+| **Map evidence** | Three linked BhuNaksha sheets, parcel filtering and field-by-field comparison |
+| **Due diligence** | Source-backed government holding flag, outstanding checks and official service links |
+| **Portable reports** | Bilingual downloadable PDF with field checklist and evidence references |
+| **Personal workspace** | Local accounts, private saved parcels, search history and sign-out |
+| **Data integrity** | SQLite storage, source control totals, access-log expiry and verified backup snapshots |
+
+## Quick start
+
+Requirements: **Node.js 24+**, a modern browser, and Chrome or Edge for PDF export. No API key or paid service is required.
+
+```sh
+git clone https://github.com/atharvtamboli/Kshetra_AI.git
+cd Kshetra_AI
 npm start
-npm test
 ```
 
-On Windows, double-click `Start-KshetraAI.cmd` to start the server and open your browser. If you start it in a terminal, open http://127.0.0.1:3000. Optional configuration is documented in `.env.example`. The service binds to loopback. The database and local accounts live in `var/kshetra.sqlite`. Keep this directory private. PDF export uses an installed Chrome or Edge; set `CHROMIUM_PATH` if necessary. The printable report remains available if rendering fails.
+Open **http://127.0.0.1:3000**. On Windows, double-click **Start-KshetraAI.cmd** to create the local environment file and launch the app. For a guided walkthrough, start with khasra **1811/5299**.
 
-## What the pilot covers
+## Architecture
 
-- **98 khasras, 910.3300 ha in aggregate.** The source is the Sisarma section of the NIC P-26(C) jamabandi for khata 905 (previously 850), base year 2018, Samvat 2074–2077. Copy issued 13 March 2020. The state is the recorded landholder; the Forest Department, Udaipur Range is listed as cultivator, with a full share at the holding level.
-- **Three cadastral sheet references.** Khasras 1811/5299, 2252 and 2253 also appear in a BhuNaksha attachment dated 12 April 2022. Each result links to its original PDF page on the government archive. The reported areas agree across the two documents. A separate jamabandi year is not provided for the 2022 sheet.
-- `records/khata-905.csv` holds the transcribed parcel facts. `records/sisarma.json` carries source URLs, extraction timestamps, dates, original-language roles, map scales and sheet references. Startup checks the source count, exact area total and cross-document area agreement. A restart does not restamp the data as fresh.
-- Search handles Hindi digits, slash subdivisions, bilingual aliases and small spelling differences for the two indexed institutional names. Search stays inside the selected pilot village. The index has no other holdings or private owners.
-- Archived records are informational. Current ownership, possession, subsequent mutations, conversion status and litigation are unchecked. Georeferenced vectors were unavailable; the app links original map sheets and reports map-computed area as unavailable. Maps and online archives require the source host to be reachable. No valuations or investment scores are generated.
+```mermaid
+flowchart TD
+    A["English / Hindi browser"] --> B["Node.js HTTP server"]
+    B --> C["Parcel lookup and source comparison"]
+    B --> D["Account and saved parcel services"]
+    C --> E["SQLite archive"]
+    D --> E
+    F["Jamabandi CSV and map references"] --> E
+    C --> G["Printable reports / PDF"]
+    E --> H["Verified backup"]
+```
 
-## Local account data
+| Directory | Responsibility |
+| --- | --- |
+| src/ | Search, validation, rendering and PDF export |
+| public/ | Responsive styles and legacy launch pages |
+| records/ | Historical parcel facts and source metadata |
+| scripts/ | Backup tooling |
+| tests/ | Archive, account and recovery regression checks |
+| docs/ | Demo, operations and screenshots |
+| var/ | Private local database and runtime files, excluded from Git |
 
-Local accounts use a username, scrypt password hash and expiring HTTP-only session cookies. Read-only searches can be made anonymously. Signed-in users can clear their last 20 search entries and remove saved parcels. Parcel access logs expire after 30 days while the service is running. Secret or live portal tokens are not required by this archive edition.
+## Test and operate
 
-## Next milestone
+```sh
+npm test
+npm run backup
+```
 
-Import a current, authorised village-level jamabandi and matching georeferenced cadastral vectors. Check village identity, parcel subdivisions, coordinate reference system and vintage before enabling point-in-polygon lookup, neighbour labels and area comparisons. Additional tehsils, live government login, change alerts and production release remain pending.
+Start the app before using the backup command. The service exposes /healthz for a database readability check. See [local operations](docs/OPERATIONS.md) for configuration, privacy and recovery.
 
+## From village pilot to Rajasthan
 
-## Project layout and operations
+The current archive contains 98 khasras totaling 910.3300 hectares under khata 905. Three records have independently linked cadastral sheets. Their source dates are visible throughout the app.
 
-The entry point is server.js. Application logic and HTML views are under src/, browser assets are under public/, archived evidence is under records/, and regression tests are under tests/. The original HTML launch links live under public/legacy/. Private runtime data stays under var/.
+Next milestones are a fresh authorised revenue extract, matching georeferenced boundaries, repeatable record-change checks and a reviewed deployment. Current title, litigation, possession and conversion remain unverified. See the [data inventory](DATA.md) for scope and outstanding evidence.
 
-Use npm run backup for a consistent SQLite snapshot while the service is running. Copies in var/backups/ contain account and session data and need the same protection as the live database. To rehearse a restore, stop the app and set DATABASE_PATH to a separate copy of the verified backup in .env, then start the app and check saved records. Preserve the existing database and its WAL files during recovery.
+---
 
-GET /healthz checks database readability. Its historical coverage label describes the local archive. Live government service availability is untested. Public deployment requires a separate deployment and privacy review.
+<div align="center">
+
+**Made for India. Built around evidence.**
+
+</div>
+
