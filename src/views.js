@@ -22,15 +22,16 @@ function shell(c,title,body,section='search') {
   const nav=(route,label,id)=>`<a ${section===id?'aria-current="page"':''} href="${link(route)}">${label}</a>`;
   return `<!doctype html><html lang="${c.hi?'hi':'en'}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${h(title)} · KshetraAI</title><link rel="stylesheet" href="/style.css"></head><body>
   <a class="skip" href="#content">${t('Skip to content','मुख्य सामग्री पर जाएँ')}</a><header><div class="bar"><a class="brand" href="${link('/')}"><b class="brand-icon" aria-hidden="true">▧</b>Kshetra<span>AI</span></a>
-  <nav>${nav('/',t('Lookup','खोज'),'search')}${nav('/saved',t('Saved','सहेजे गए'),'saved')}${nav('/history',t('History','इतिहास'),'history')}${nav('/compare',t('Compare','तुलना'),'compare')}${nav('/coverage',t('Coverage','कवरेज'),'coverage')}</nav>
+  <nav>${nav('/',t('Lookup','खोज'),'search')}${nav('/schemes/layout',t('Layout plots','लेआउट प्लॉट'),'schemes')}${nav('/saved',t('Saved','सहेजे गए'),'saved')}${nav('/history',t('History','इतिहास'),'history')}${nav('/compare',t('Compare','तुलना'),'compare')}${nav('/coverage',t('Coverage','कवरेज'),'coverage')}</nav>
   <div class="actions"><a lang="${c.hi?'en':'hi'}" href="${c.toggle}">${t('हिन्दी','English')}</a>${user?`<form method="post" action="${link('/logout')}"><button class="quiet">${t('Sign out','लॉग आउट')}</button></form>`:`<a class="outline" href="${link('/account')}">${t('Sign in','लॉग इन')}</a>`}</div></div></header>
-  <main id="content" tabindex="-1">${body}</main><footer><b>KshetraAI</b><span>${t('Udaipur land records','उदयपुर भू-अभिलेख')}</span><a href="${link('/terms')}">${t('Terms & privacy','शर्तें और गोपनीयता')}</a></footer></body></html>`;
+  <main id="content" tabindex="-1">${body}</main><footer><b>KshetraAI</b><span>${t('Rajasthan land records','राजस्थान भू-अभिलेख')}</span><a href="${link('/terms')}">${t('Terms & privacy','शर्तें और गोपनीयता')}</a></footer></body></html>`;
 }
 function place(c) {const {t}=c;return [t(...source.district),t(...source.tehsil),t(...source.village)].map(h).join(' <i> / </i> ');}
 function row(c,p){
   const {t,link}=c;
   return `<a class="plot-row" href="${link('/plot',{k:p.khasra})}"><span><small>${t('Khasra','खसरा')}</small><strong>${h(p.khasra)}</strong></span><span>${h(t(...terms[p.kind]))}</span><span class="number">${p.area} ha</span><span aria-hidden="true">↗</span></a>`;
 }
+function normalizePlotTerm(term) { return require('./schemes').matchPlot(term); }
 function lookup(c,store,sp){
   const {t,link}=c, mode=sp.get('by') || 'khasra', term=sp.get('q')?.trim() || '';
   const filter=sp.get('filter') || 'all';
@@ -45,6 +46,8 @@ function lookup(c,store,sp){
   <p class="intro">${t('Search the archived revenue records for Sisarma, Girwa tehsil.','गिर्वा तहसील के सीसारमा गाँव के अभिलेख खोजें।')}</p>
   <form class="search" action="/" role="search"><input type="hidden" name="filter" value="${h(filter)}">${c.hi?'<input type="hidden" name="lang" value="hi">':''}<label>${t('Search by','खोज का प्रकार')}<select name="by">${opt('khasra',t('Khasra number','खसरा संख्या'))}${opt('khata',t('Khata number','खाता संख्या'))}${opt('name',t('Recorded name','दर्ज नाम'))}</select></label>
   <label class="grow">${t('Number or recorded name','संख्या या दर्ज नाम')}<input name="q" value="${h(term)}" maxlength="80" placeholder="${t('e.g. 1811/5299','जैसे १८११/५२९९')}" required></label><button>${t('Search records','अभिलेख खोजें')} &nbsp;→</button></form></section>
+  <a class="layout-entry" href="${link('/schemes/layout')}"><span><b>${t('Have a residential plot sheet?','आवासीय प्लॉट की प्रति है?')}</b> ${t('Find a block and plot in the local layout index.','स्थानीय सूची में ब्लॉक और प्लॉट खोजें।')}</span><span aria-hidden="true">→</span></a>
+  ${mode==='khasra' && normalizePlotTerm(term)?`<p class="panel pad"><a href="${link('/schemes/layout',{q:term})}">${t('Residential layout match','आवासीय लेआउट मिलान')} · ${h(require('./layout-index').name[0])} · ${h(normalizePlotTerm(term).id)}</a></p>`:''}
   <div class="filterbar" aria-label="${t('Filter parcels','खसरे छाँटें')}">${[['all',t('All parcels','सभी खसरे')],['sheets',t('With map sheet','नक्शे वाले')]].map(([key,label])=>`<a href="${link('/',{by:mode,q:term,filter:key})}" ${filter===key?'aria-current="true"':''}>${label}</a>`).join('')}</div>
   <div class="columns"><section class="panel"><div class="panel-head"><h2>${selected}</h2><span>${items.length} ${t('parcels','खसरे')}</span></div>
   ${term?`<p class="feedback">${h(term)} · ${mode==='name'?t('Name candidates in this holding','इस खाते में संभावित नाम'):mode==='khata'&&require('./data').normalize(term)===source.holding.oldKhata?t('Previous khata number','पुरानी खाता संख्या'):t('Exact number','सटीक संख्या')} <a href="${link('/')}">${t('Reset','हटाएँ')}</a></p>`:''}

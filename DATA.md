@@ -23,4 +23,14 @@ For current information, use [Apna Khata](https://apnakhata.rajasthan.gov.in/) a
 
 ## Village location reference
 
-The [BBNL district/block/village table](https://bbnl.nic.in/admnis/admin/showimg.aspx?ID=982) lists Sisarma, Girwa, Udaipur at latitude 24.573150 and longitude 73.653100. This is a village reference, not survey geometry or a parcel centroid. KshetraAI uses it to center the optional OpenStreetMap view. The [official Rajasthan GIS](https://rajdharaa.rajasthan.gov.in/citizenudh/index) offers khasra search; availability of precise georeferenced boundaries for these parcels remains unverified.
+The [BBNL district/block/village table](https://bbnl.nic.in/admnis/admin/showimg.aspx?ID=982) supplies the Sisarma locality reference. The optional OpenStreetMap view uses this reference. For cadastral search, consult [Rajasthan GIS](https://rajdharaa.rajasthan.gov.in/citizenudh/index).
+
+## Private residential layout configuration
+
+The public build starts with no residential records. Use one local scheme index in `var/layout-index.json` (or set `LAYOUT_INDEX_FILE`). Provide bilingual `name`, `village`, `district`, `indexedOn` and a `plots` array. Each plot has an uppercase block-number `id`, source locator, tentative `pattaReading` and `areaReadingSqFt`, original `photoSize`, pixel-coordinate `outline` and display `rotation`. The test fixture illustrates the schema with artificial values. Keep originals and personal data local.
+
+- For a common drawing, supply a redacted `var/layout-plan/plan.png` and `plan.json` with `source`, `revisionDate`, matching SHA-256 digest `sha256`, `reviewedForSharing: true`, and `outlines` indexed by plot ID in PNG pixel coordinates.
+- Add reviewed public document references as individual JSON files in `var/layout-evidence/` with `plot`, `field`, `value`, `document`, `date`, `locator`, and a government HTTPS `url`. Field identifiers are in `src/layout-evidence.js`. The source document is required for claims; handwritten readings remain provisional.
+- Optional `var/layout-ground.json` accepts `source`, `sourceDate`, `originalCrs`, `reportedRmseM`, `crs: "EPSG:4326"`, closed longitude/latitude `rings` per plot ID, a separate `checkSource`, and `checks` with plot ID and independently established interior `point`. Independently verify authority, reprojection and survey accuracy.
+
+Restart after changing local evidence. SQLite stores the observed snapshots and reviewed drawing revisions. Watches are checked on local reload. Automated official-portal monitoring, verified title, survey-grade mapping and statewide coverage require additional data access and review. Keep a separate database for each local scheme configuration.

@@ -5,8 +5,14 @@ const crypto = require('node:crypto');
 const {promisify} = require('node:util');
 const {openStore,source,normalize} = require('./src/data');
 const {context,shell,lookup,detail,row,h} = require('./src/views');
-const {coverageView,compareView} = require('./src/workspace');
+const {coverageView,compareView}=require('./src/workspace');
 const {renderPdf} = require('./src/reports');
+const schemes = require('./src/schemes');
+const layoutHistory=require('./src/layout-history');
+const schemeLens = fs.readFileSync(path.join(__dirname,'public/scheme-lens.js'),'utf8');
+const schemeTrace = fs.readFileSync(path.join(__dirname,'public/scheme-trace.js'),'utf8');
+const {tracing}=require('./src/tracing');
+const privateMapPolicy={'Content-Security-Policy':"default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' blob:; connect-src 'none'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'"};
 const hashPassword = promisify(crypto.scrypt);
 const css = fs.readFileSync(path.join(__dirname,'public/style.css'),'utf8');
 const modes = ['khasra','khata','name'];
@@ -31,6 +37,11 @@ function account(c, msg='', k='') {
 
 function createApp(filename=process.env.DATABASE_PATH || path.join(__dirname,'var','kshetra.sqlite')) {
   const store=openStore(filename), {db}=store, limits=new Map();
+  const schemeClaims=require('./src/layout-evidence').loadEvidence();
+  const plan=require('./src/approved-plan').loadPlan();
+  const ground=require('./src/ground');
+  const groundData=ground.loadGround();
+  layoutHistory.syncLayout(db,schemes.scheme,schemeClaims,plan);
   function limited(key, max, interval){
     const time=now(); let item=limits.get(key);
     if (!item || item.end<=time) {item={count:0,end:time+interval};limits.set(key,item);}
@@ -63,6 +74,38 @@ function createApp(filename=process.env.DATABASE_PATH || path.join(__dirname,'va
       if (req.method==='GET') {
         if (route==='/healthz') { db.prepare('SELECT 1 FROM plots LIMIT 1').get(); return send(200,JSON.stringify({status:'ok',coverage:'historical'}),'application/json'); }
         if (route==='/style.css') return send(200,css,'text/css; charset=utf-8');
+        if (route==='/scheme-lens.js') return send(200,schemeLens,'text/javascript; charset=utf-8');
+        if (route==='/scheme-trace.js') return send(200,schemeTrace,'text/javascript; charset=utf-8');
+        if (route===schemes.root+'/trace') return send(200,tracing(c,schemes.records.get(sp.get('from'))),'text/html; charset=utf-8',privateMapPolicy);
+        if (route===schemes.root) {
+          const mode=sp.get('by')||'plot', q=(sp.get('q')||'').trim();
+          if (!schemes.modes.has(mode)||q.length>80) return error(400,t('Invalid layout search','अमान्य लेआउट खोज'));
+          return send(200,schemes.index(c,mode,q,plan));
+        }
+        if (route===schemes.root+'/compare') return send(200,schemes.compare(c));
+        if(route===schemes.root+'/plan.png' && plan)return send(200,plan.bytes,'image/png');
+        if(route===schemes.root+'/ground')return send(200,ground.groundPage(c,groundData,sp.get('plot')));
+        if(/^\/schemes\/layout\/images\/[0-9a-f]{64}$/.test(route)){
+          const image=db.prepare('SELECT bytes FROM layout_images WHERE digest=?').get(route.split('/').pop());
+          if(image)return send(200,Buffer.from(image.bytes),'image/png');
+        }
+        if (route.startsWith(schemes.root+'/')) {
+          const parts=route.slice(schemes.root.length+1).split('/');
+          const plot=schemes.records.get(parts[0]);
+          if(plot && parts.length===2 && parts[1]==='history') return send(200,layoutHistory.history(c,db,plot));
+          if (!plot || parts.length>2 || (parts.length===2&&!['report','report.pdf'].includes(parts[1])))
+            return error(404,t('Layout sheet unavailable','लेआउट प्रति उपलब्ध नहीं'));
+          const html=schemes.detail(c,plot,parts.length===2,schemeClaims.filter(r=>r.plot===plot.id),plan,Number(sp.get('zoom'))===4?4:1);
+          if(parts.length===1) return send(200,html,'text/html; charset=utf-8',privateMapPolicy);
+          if(parts[1]==='report') return send(200,html);
+          if(limited('pdf:'+ip,12,60000)) return error(429,t('Report limit reached. Retry in one minute.','एक मिनट बाद फिर कोशिश करें।'));
+          try {
+            const pdf=await renderPdf(html,css);
+            return send(200,pdf,'application/pdf',{'Content-Disposition':'attachment; filename="Layout-'+plot.id+'-'+(c.hi?'hi':'en')+'.pdf"'});
+          } catch {
+            return send(503,shell(c,t('PDF unavailable','पीडीएफ अनुपलब्ध'),`<article class="panel pad"><h2>${t('PDF renderer unavailable or busy','पीडीएफ सेवा उपलब्ध नहीं या व्यस्त है')}</h2><a href="${link(route.replace(/\.pdf$/,''))}">${t('Open print view','प्रिंट प्रति खोलें')}</a></article>`));
+          }
+        }
         if (route==='/favicon.ico') return send(204,'');
         if (route==='/index.html') return redirect(to('/'));
         if (route==='/dashboard.html') return redirect(to('/saved'));
@@ -71,11 +114,13 @@ function createApp(filename=process.env.DATABASE_PATH || path.join(__dirname,'va
           const selected=['a','b','c'].map(k=>normalize(sp.get(k)||''));
           const populated=selected.filter(Boolean);
           if (populated.some(k=>!store.plot(k))||new Set(populated).size!==populated.length)
-            return error(400,t('Choose distinct khasras from this archive','इस अभिलेख से अलग-अलग खसरे चुनें'));
+            return error(400,t('Choose distinct khasras from this archive','इस संग्रह से अलग खसरे चुनें'));
           return send(200,compareView(c,store,selected,sp.get('print')==='1'));
         }
         if (route==='/') {
           const mode=sp.get('by')||'khasra', q=sp.get('q')?.trim()||'';
+          if (mode==='khasra' && q.length<=80 && /[^0-9०-९\s/]/u.test(q) && schemes.matchPlot(q))
+            return redirect(to(schemes.root,{q}));
           if (!['all','sheets'].includes(sp.get('filter')||'all')||!modes.includes(mode)||q.length>80||(sp.has('page')&&!/^[1-9]\d{0,3}$/.test(sp.get('page'))))
             return error(400,t('Invalid search','अमान्य खोज'));
           if (q && !sp.has('page') && user) {
@@ -105,8 +150,12 @@ function createApp(filename=process.env.DATABASE_PATH || path.join(__dirname,'va
         if (route==='/saved'||route==='/history'){
           if(!user)return redirect(to('/account'));
           const saved=route==='/saved', title=saved?t('Saved parcels','सहेजे गए खसरे'):t('Search history','खोज इतिहास');
-          const content=saved?db.prepare('SELECT p.* FROM saves s JOIN plots p USING(village,khasra) WHERE s.user_id=? ORDER BY CAST(p.khasra AS INTEGER)').all(user.id).map(p=>row(c,p)).join(''):
+          let content=saved?db.prepare('SELECT p.* FROM saves s JOIN plots p USING(village,khasra) WHERE s.user_id=? ORDER BY CAST(p.khasra AS INTEGER)').all(user.id).map(p=>row(c,p)).join(''):
             db.prepare('SELECT mode,term FROM searches WHERE user_id=? ORDER BY id DESC').all(user.id).map(r=>`<a class="history-row" href="${link('/',{by:r.mode,q:r.term})}">${h(r.term)} ↗</a>`).join('');
+          if(saved){
+            const watches=db.prepare('SELECT w.plot,MAX(v.id)>w.since_id AS changed FROM layout_watches w JOIN layout_versions v ON v.plot=w.plot WHERE w.user_id=? GROUP BY w.plot,w.since_id').all(user.id);
+            content+=watches.map(w=>`<a class="history-row" href="${link(schemes.root+'/'+w.plot+'/history')}">Layout · ${h(w.plot)} · ${w.changed?t('Sheet changed','प्रति बदली'):t('Watching','निगरानी जारी')}</a>`).join('');
+          }
           const clear=!saved&&content?`<form method="post" action="${link('/clear-history')}"><button class="outline">${t('Clear history','इतिहास मिटाएँ')}</button></form>`:'';
           return send(200,shell(c,title,`<h1>${title}</h1><div class="panel pad">${content||t('No entries yet.','अभी कोई प्रविष्टि नहीं है।')}${clear}</div>`,saved?'saved':'history'));
         }
@@ -136,6 +185,13 @@ function createApp(filename=process.env.DATABASE_PATH || path.join(__dirname,'va
         return redirect(store.plot(k)?to('/plot',{k}):to('/'),{'Set-Cookie':'ks_session='+fresh+'; HttpOnly; SameSite=Strict; Path=/; Max-Age=604800'});
       }
       if(!user)return redirect(to('/account'));
+      if(route==='/layout-watch'){
+        const p=schemes.records.get(form.get('plot')),action=form.get('action');
+        if(!p||!['add','remove'].includes(action))return error(400,t('Invalid watch','अमान्य निगरानी'));
+        if(action==='add')db.prepare('INSERT OR IGNORE INTO layout_watches SELECT ?,?,MAX(id) FROM layout_versions WHERE plot=?').run(user.id,p.id,p.id);
+        else db.prepare('DELETE FROM layout_watches WHERE user_id=? AND plot=?').run(user.id,p.id);
+        return redirect(to(schemes.root+'/'+p.id+'/history'));
+      }
       if(route==='/save'){
         const p=store.plot(form.get('k')||''); if(!p||!['add','remove'].includes(form.get('action')))return error(400,t('Invalid parcel','अमान्य खसरा'));
         const sql=form.get('action')==='add'?'INSERT OR IGNORE INTO saves VALUES(?,?,?)':'DELETE FROM saves WHERE user_id=? AND village=? AND khasra=?';
